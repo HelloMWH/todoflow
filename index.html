@@ -258,6 +258,14 @@
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
     }
 
+    function saveAiConfig(config) { localStorage.setItem('todoflow_ai_config', JSON.stringify(config)); }
+    function loadAiConfig() {
+      try {
+        const data = localStorage.getItem('todoflow_ai_config');
+        return data ? JSON.parse(data) : { enabled: false, provider: 'openai', apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' };
+      } catch { return { enabled: false, provider: 'openai', apiKey: '', baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' }; }
+    }
+
     // 计算存储大小
     function getStorageSize() {
       const todos = localStorage.getItem(STORAGE_KEYS.TODOS) || '';
@@ -409,6 +417,158 @@
       return report;
     }
 
+    // ========== AI 增强周报生成 ==========
+    async function generateAIReport(todos, projects, startDate, endDate) {
+      const aiConfig = state.aiConfig;
+      if (!aiConfig.enabled || !aiConfig.apiKey) {
+        showToast('请先在设置中配置 AI API');
+        return null;
+      }
+
+      state.isGeneratingReport = true;
+      render();
+
+      try {
+        // 准备数据
+        const periodTodos = todos.filter(t => {
+          const created = new Date(t.createdAt);
+          const completed = t.completedAt ? new Date(t.completedAt) : null;
+          created.setHours(0, 0, 0, 0);
+          if (completed) completed.setHours(0, 0, 0, 0);
+          return (created >= startDate && created <= endDate) ||
+                 (completed && completed >= startDate && completed <= endDate);
+        });
+
+        const completedTodos = periodTodos.filter(t => t.status === 'completed');
+        const cancelledTodos = periodTodos.filter(t => t.status === 'cancelled');
+        const activeTodos = periodTodos.filter(t => t.status === 'active');
+
+        const getProjectName = (projectId) => {
+          if (!projectId) return '收件箱';
+          const project = projects.find(p => p.id === projectId);
+          return project?.name || '未知项目';
+        };
+
+        // 格式化任务列表
+        const completedList = completedTodos.map(t => {
+          let task = `- ${t.title} [${getProjectName(t.projectId)}]`;
+          if (t.followUpTask) task += `\n  → 后续: ${t.followUpTask}`;
+          return task;
+        }).join('\n');
+
+        const cancelledList = cancelledTodos.map(t => `- ${t.title} [${getProjectName(t.projectId)}]`).join('\n');
+        const activeList = activeTodos.map(t => `- ${t.title} [${getProjectName(t.projectId)}]`).join('\n');
+
+        const formatDate = (d) => `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
+        const startStr = formatDate(startDate);
+        const endStr = formatDate(endDate);
+
+        // 构建提示词
+        const prompt = `你是资深产品经理，擅长撰写精炼、有洞察力的工作周报。
+
+请基于以下任务数据，生成一份专业的周报：
+
+## 时间范围
+${startStr} 至 ${endStr}
+
+## 本周完成任务 (${completedTodos.length}个)
+${completedList || '无'}
+
+## 已取消任务 (${cancelledTodos.length}个)
+${cancelledList || '无'}
+
+## 进行中任务 (${activeTodos.length}个)
+${activeList || '无'}
+
+## 项目分布
+${(() => {
+  const byProject = {};
+  completedTodos.forEach(t => {
+    const p = getProjectName(t.projectId);
+    byProject[p] = (byProject[p] || 0) + 1;
+  });
+  return Object.entries(byProject).map(([k, v]) => `${k}: ${v}个`).join(', ') || '无';
+})()}
+
+请生成一份包含以下内容的周报（使用中文，语言简洁专业）：
+1. **本周概览**：用一句话总结本周工作主题和亮点
+2. **核心成果**：挑选2-3个最有价值的任务，详细说明做了什么、带来什么价值
+3. **工作洞察**：分析本周工作模式，发现的问题或值得注意的事
+4. **下周计划**：基于进行中的任务，列出下周重点推进事项
+5. **风险与阻塞**：如果有，取消的任务或明显的问题
+
+要求：
+- 语言自然流畅，避免机械罗列
+- 突出个人贡献和价值
+- 适当使用 emoji 增强可读性
+- 总字数控制在 300-500 字`;
+
+        // 调用 AI API
+        let response;
+        let aiContent = '';
+
+        if (aiConfig.provider === 'claude') {
+          // Claude API
+          response = await fetch(aiConfig.baseUrl + '/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': aiConfig.apiKey,
+              'anthropic-version': '2023-06-01',
+              'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+              model: aiConfig.model,
+              max_tokens: 2000,
+              messages: [{ role: 'user', content: prompt }]
+            })
+          });
+          const data = await response.json();
+          aiContent = data.content?.[0]?.text || '';
+        } else {
+          // OpenAI 兼容 API (包括 Ollama)
+          response = await fetch(aiConfig.baseUrl + '/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${aiConfig.apiKey}`
+            },
+            body: JSON.stringify({
+              model: aiConfig.model,
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0.7,
+              max_tokens: 2000
+            })
+          });
+          const data = await response.json();
+          aiContent = data.choices?.[0]?.message?.content || '';
+        }
+
+        if (!response.ok) {
+          throw new Error(`API 错误: ${response.status}`);
+        }
+
+        // 组合最终报告
+        const stats = `📊 **数据统计**
+- 新建任务：${periodTodos.length} 个
+- 完成任务：${completedTodos.length} 个  
+- 取消任务：${cancelledTodos.length} 个
+- 完成率：${periodTodos.length > 0 ? Math.round((completedTodos.length / periodTodos.length) * 100) : 0}%
+
+---
+`;
+        return `# 周报：${startStr} - ${endStr}\n\n${stats}${aiContent}`;
+
+      } catch (error) {
+        console.error('AI Report Error:', error);
+        showToast('AI 生成失败: ' + error.message);
+        return null;
+      } finally {
+        state.isGeneratingReport = false;
+        render();
+      }
+    }
+
     // ========== 应用状态 ==========
     let state = {
       todos: loadTodos(),
@@ -419,6 +579,7 @@
       showProjectModal: false,
       showReportModal: false,
       showSettingsModal: false,
+      settingsTab: 'data',
       reportContent: '',
       reportStartDate: '',
       reportEndDate: '',
@@ -430,6 +591,9 @@
       taskFollowUp: '',
       projectName: '',
       projectColor: 'blue',
+      // AI 配置
+      aiConfig: loadAiConfig(),
+      isGeneratingReport: false,
       // Toast
       toastMessage: '',
     };
@@ -879,11 +1043,40 @@
                     </svg>
                     <input type="date" id="reportEndDateInput" value="${state.reportEndDate}" class="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" onchange="clearReportTemplate()" />
                   </div>
-                  <button onclick="generateReportFromInputs()" class="btn-primary h-8 px-3 rounded-lg text-sm">生成</button>
+                  <button onclick="generateReportFromInputs()" class="btn-secondary h-8 px-3 rounded-lg text-sm ${state.isGeneratingReport ? 'opacity-50 cursor-not-allowed' : ''}" ${state.isGeneratingReport ? 'disabled' : ''}>基础</button>
+                  <button onclick="generateAIReportFromInputs()" class="btn-primary h-8 px-3 rounded-lg text-sm flex items-center gap-1.5 ${state.isGeneratingReport ? 'opacity-50 cursor-not-allowed' : ''}" ${state.isGeneratingReport ? 'disabled' : ''}>
+                    ${state.isGeneratingReport ? `
+                      <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                      </svg>
+                      AI 生成中...
+                    ` : `
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                      </svg>
+                      AI 生成
+                    `}
+                  </button>
                 </div>
+                ${state.aiConfig.enabled ? '' : `
+                  <div class="text-xs text-muted-foreground bg-secondary/30 rounded-lg p-2 border border-border/30">
+                    💡 想要更智能的周报？<button onclick="closeReportModal();openSettingsModal();" class="text-primary hover:underline">去设置 AI API</button>
+                  </div>
+                `}
               </div>
               <div class="flex-1 overflow-y-auto p-4">
-                <pre class="text-sm whitespace-pre-wrap font-mono bg-secondary/30 p-4 rounded-lg border border-border/50">${state.reportContent || '点击"生成"按钮生成周报'}</pre>
+                ${state.isGeneratingReport ? `
+                  <div class="flex flex-col items-center justify-center h-48 text-muted-foreground">
+                    <svg class="w-8 h-8 animate-spin mb-3" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span>正在生成智能周报...</span>
+                  </div>
+                ` : `
+                  <pre class="text-sm whitespace-pre-wrap font-mono bg-secondary/30 p-4 rounded-lg border border-border/50">${state.reportContent || '选择日期范围，点击生成按钮'}</pre>
+                `}
               </div>
               <div class="p-4 border-t border-border flex justify-end gap-2">
                 <button onclick="closeReportModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">关闭</button>
@@ -896,53 +1089,106 @@
         <!-- 设置弹窗 -->
         ${state.showSettingsModal ? `
           <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeSettingsModal()">
-            <div class="bg-card border border-border rounded-xl w-full max-w-sm mx-4 animate-slide-up shadow-2xl">
+            <div class="bg-card border border-border rounded-xl w-full max-w-md mx-4 animate-slide-up shadow-2xl">
               <div class="p-4 border-b border-border flex items-center justify-between">
-                <h3 class="font-semibold">数据管理</h3>
+                <h3 class="font-semibold">设置</h3>
                 <button onclick="closeSettingsModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                   </svg>
                 </button>
               </div>
-              <div class="p-4 space-y-4">
-                ${(() => {
-                  const size = getStorageSize();
-                  return `
-                    <div class="bg-secondary/30 rounded-lg p-3 border border-border/50">
-                      <div class="text-sm font-medium mb-2">存储统计</div>
-                      <div class="grid grid-cols-2 gap-2 text-xs">
-                        <div class="flex justify-between"><span class="text-muted-foreground">任务数量</span><span>${size.todos} 个</span></div>
-                        <div class="flex justify-between"><span class="text-muted-foreground">项目数量</span><span>${size.projects} 个</span></div>
-                        <div class="flex justify-between col-span-2"><span class="text-muted-foreground">占用空间</span><span>${size.kb} KB</span></div>
-                      </div>
-                    </div>
-                  `;
-                })()}
-                <div class="text-xs text-muted-foreground bg-secondary/20 rounded-lg p-3 border border-border/30">
-                  <p class="mb-1">💡 <strong>存储说明</strong></p>
-                  <p>LocalStorage 限制约 5MB。当前数据量远低于限制，但随着使用时间增长，建议定期清理或导出备份。</p>
+              <div class="border-b border-border">
+                <div class="flex">
+                  <button onclick="setSettingsTab('data')" class="flex-1 py-2.5 text-sm font-medium ${state.settingsTab !== 'ai' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'} transition-colors">数据管理</button>
+                  <button onclick="setSettingsTab('ai')" class="flex-1 py-2.5 text-sm font-medium ${state.settingsTab === 'ai' ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'} transition-colors">AI 设置</button>
                 </div>
               </div>
-              <div class="p-4 border-t border-border space-y-2">
-                <button onclick="handleExportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                  </svg>
-                  导出备份
-                </button>
-                <button onclick="handleImportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                  </svg>
-                  导入备份
-                </button>
-                <button onclick="handleCleanupData()" class="w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                  </svg>
-                  清理30天前的已完成任务
-                </button>
+              <div class="p-4 max-h-[60vh] overflow-y-auto">
+                ${state.settingsTab === 'data' ? `
+                  <div class="space-y-4">
+                    ${(() => {
+                      const size = getStorageSize();
+                      return `
+                        <div class="bg-secondary/30 rounded-lg p-3 border border-border/50">
+                          <div class="text-sm font-medium mb-2">存储统计</div>
+                          <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="flex justify-between"><span class="text-muted-foreground">任务数量</span><span>${size.todos} 个</span></div>
+                            <div class="flex justify-between"><span class="text-muted-foreground">项目数量</span><span>${size.projects} 个</span></div>
+                            <div class="flex justify-between col-span-2"><span class="text-muted-foreground">占用空间</span><span>${size.kb} KB</span></div>
+                          </div>
+                        </div>
+                      `;
+                    })()}
+                    <div class="text-xs text-muted-foreground bg-secondary/20 rounded-lg p-3 border border-border/30">
+                      <p class="mb-1">💡 <strong>存储说明</strong></p>
+                      <p>LocalStorage 限制约 5MB。当前数据量远低于限制，但随着使用时间增长，建议定期清理或导出备份。</p>
+                    </div>
+                  </div>
+                  <div class="pt-4 space-y-2 border-t border-border mt-4">
+                    <button onclick="handleExportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                      </svg>
+                      导出备份
+                    </button>
+                    <button onclick="handleImportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                      </svg>
+                      导入备份
+                    </button>
+                    <button onclick="handleCleanupData()" class="w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                      清理30天前的已完成任务
+                    </button>
+                  </div>
+                ` : `
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <div class="text-sm font-medium">启用 AI 周报</div>
+                        <div class="text-xs text-muted-foreground">智能生成更人性化的周报</div>
+                      </div>
+                      <button onclick="toggleAiEnabled()" class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${state.aiConfig.enabled ? 'bg-primary' : 'bg-muted'}">
+                        <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${state.aiConfig.enabled ? 'translate-x-4' : 'translate-x-0.5'}"></span>
+                      </button>
+                    </div>
+                    <div class="space-y-3 ${state.aiConfig.enabled ? '' : 'opacity-50 pointer-events-none'}">
+                      <div>
+                        <label class="text-xs text-muted-foreground mb-1 block">API 提供商</label>
+                        <select onchange="updateAiConfig('provider', this.value)" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                          <option value="openai" ${state.aiConfig.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                          <option value="claude" ${state.aiConfig.provider === 'claude' ? 'selected' : ''}>Claude (Anthropic)</option>
+                          <option value="ollama" ${state.aiConfig.provider === 'ollama' ? 'selected' : ''}>Ollama (本地)</option>
+                          <option value="custom" ${state.aiConfig.provider === 'custom' ? 'selected' : ''}>自定义 API</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="text-xs text-muted-foreground mb-1 block">API 地址</label>
+                        <input type="text" value="${state.aiConfig.baseUrl}" onchange="updateAiConfig('baseUrl', this.value)" placeholder="https://api.openai.com/v1" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label class="text-xs text-muted-foreground mb-1 block">API Key</label>
+                        <input type="password" value="${state.aiConfig.apiKey}" onchange="updateAiConfig('apiKey', this.value)" placeholder="sk-..." class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label class="text-xs text-muted-foreground mb-1 block">模型</label>
+                        <input type="text" value="${state.aiConfig.model}" onchange="updateAiConfig('model', this.value)" placeholder="gpt-4o-mini" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      </div>
+                    </div>
+                    <div class="text-xs text-muted-foreground bg-secondary/20 rounded-lg p-3 border border-border/30">
+                      <p>💡 <strong>推荐配置</strong></p>
+                      <ul class="mt-1 space-y-0.5">
+                        <li>• OpenAI: 使用 gpt-4o-mini 或 gpt-4o</li>
+                        <li>• Claude: 使用 claude-3-haiku 或 claude-3-sonnet</li>
+                        <li>• Ollama: 地址填 http://localhost:11434</li>
+                      </ul>
+                    </div>
+                  </div>
+                `}
               </div>
             </div>
           </div>
@@ -1199,7 +1445,7 @@
     function generateReportFromInputs() {
       const startStr = document.getElementById('reportStartDateInput')?.value || state.reportStartDate;
       const endStr = document.getElementById('reportEndDateInput')?.value || state.reportEndDate;
-      
+
       state.reportStartDate = startStr;
       state.reportEndDate = endStr;
 
@@ -1209,6 +1455,24 @@
 
       state.reportContent = generateWeeklyReport(state.todos, state.projects, start, end);
       render();
+    }
+
+    async function generateAIReportFromInputs() {
+      const startStr = document.getElementById('reportStartDateInput')?.value || state.reportStartDate;
+      const endStr = document.getElementById('reportEndDateInput')?.value || state.reportEndDate;
+
+      state.reportStartDate = startStr;
+      state.reportEndDate = endStr;
+
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      end.setHours(23, 59, 59, 999);
+
+      const aiReport = await generateAIReport(state.todos, state.projects, start, end);
+      if (aiReport) {
+        state.reportContent = aiReport;
+        render();
+      }
     }
 
     function copyReport() {
@@ -1228,6 +1492,36 @@
 
     function closeSettingsModal() {
       state.showSettingsModal = false;
+      render();
+    }
+
+    function setSettingsTab(tab) {
+      state.settingsTab = tab;
+      render();
+    }
+
+    function toggleAiEnabled() {
+      state.aiConfig.enabled = !state.aiConfig.enabled;
+      saveAiConfig(state.aiConfig);
+      render();
+    }
+
+    function updateAiConfig(key, value) {
+      // 如果切换到 ollama，设置默认值
+      if (key === 'provider') {
+        if (value === 'ollama') {
+          state.aiConfig.baseUrl = 'http://localhost:11434/v1';
+          state.aiConfig.model = 'llama3';
+        } else if (value === 'claude') {
+          state.aiConfig.baseUrl = 'https://api.anthropic.com/v1';
+          state.aiConfig.model = 'claude-3-haiku-20240307';
+        } else if (value === 'openai') {
+          state.aiConfig.baseUrl = 'https://api.openai.com/v1';
+          state.aiConfig.model = 'gpt-4o-mini';
+        }
+      }
+      state.aiConfig[key] = value;
+      saveAiConfig(state.aiConfig);
       render();
     }
 
