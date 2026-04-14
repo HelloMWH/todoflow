@@ -280,6 +280,40 @@
       URL.revokeObjectURL(url);
     }
 
+    // 导入数据
+    function importData() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.todos && data.projects) {
+              if (confirm('导入将覆盖当前所有数据，是否继续？')) {
+                saveTodos(data.todos);
+                saveProjects(data.projects);
+                state.todos = data.todos;
+                state.projects = data.projects;
+                state.selectedProjectId = 'all';
+                render();
+                showToast(`成功导入 ${data.todos.length} 个任务，${data.projects.length} 个项目`);
+              }
+            } else {
+              showToast('文件格式不正确');
+            }
+          } catch (err) {
+            showToast('文件解析失败');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+
     // ========== 周报生成 ==========
     function generateWeeklyReport(todos, projects, startDate, endDate) {
       const periodTodos = todos.filter(t => {
@@ -872,6 +906,12 @@
                   </svg>
                   导出备份
                 </button>
+                <button onclick="handleImportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                  </svg>
+                  导入备份
+                </button>
                 <button onclick="handleCleanupData()" class="w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
@@ -1169,6 +1209,10 @@
     function handleExportData() {
       exportData();
       showToast('数据已导出');
+    }
+
+    function handleImportData() {
+      importData();
     }
 
     function handleCleanupData() {
