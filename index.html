@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TodoFlow - 个人工作管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            border: 'hsl(var(--border))',
+            input: 'hsl(var(--input))',
+            ring: 'hsl(var(--ring))',
+            background: 'hsl(var(--background))',
+            foreground: 'hsl(var(--foreground))',
+            primary: {
+              DEFAULT: 'hsl(var(--primary))',
+              foreground: 'hsl(var(--primary-foreground))',
+            },
+            secondary: {
+              DEFAULT: 'hsl(var(--secondary))',
+              foreground: 'hsl(var(--secondary-foreground))',
+            },
+            destructive: {
+              DEFAULT: 'hsl(var(--destructive))',
+              foreground: 'hsl(var(--destructive-foreground))',
+            },
+            muted: {
+              DEFAULT: 'hsl(var(--muted))',
+              foreground: 'hsl(var(--muted-foreground))',
+            },
+            accent: {
+              DEFAULT: 'hsl(var(--accent))',
+              foreground: 'hsl(var(--accent-foreground))',
+            },
+            card: {
+              DEFAULT: 'hsl(var(--card))',
+              foreground: 'hsl(var(--card-foreground))',
+            },
+            success: {
+              DEFAULT: 'hsl(var(--success))',
+              foreground: 'hsl(var(--success-foreground))',
+            },
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    :root {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+      --card: 222.2 84% 4.9%;
+      --card-foreground: 210 40% 98%;
+      --popover: 222.2 84% 4.9%;
+      --popover-foreground: 210 40% 98%;
+      --primary: 217.2 91.2% 59.8%;
+      --primary-foreground: 0 0% 100%;
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+      --accent: 217.2 32.6% 17.5%;
+      --accent-foreground: 210 40% 98%;
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+      --success: 142.1 70.6% 45.3%;
+      --success-foreground: 0 0% 100%;
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 224.3 76.3% 48%;
+    }
+    
+    * { border-color: hsl(var(--border)); }
+    body { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+    
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+    
+    .project-red { background: rgb(239 68 68 / 0.15); color: rgb(248 113 113); border: 1px solid rgb(239 68 68 / 0.3); }
+    .project-orange { background: rgb(249 115 22 / 0.15); color: rgb(251 146 60); border: 1px solid rgb(249 115 22 / 0.3); }
+    .project-yellow { background: rgb(234 179 8 / 0.15); color: rgb(250 204 21); border: 1px solid rgb(234 179 8 / 0.3); }
+    .project-green { background: rgb(34 197 94 / 0.15); color: rgb(74 222 128); border: 1px solid rgb(34 197 94 / 0.3); }
+    .project-teal { background: rgb(20 184 166 / 0.15); color: rgb(45 212 191); border: 1px solid rgb(20 184 166 / 0.3); }
+    .project-blue { background: rgb(59 130 246 / 0.15); color: rgb(96 165 250); border: 1px solid rgb(59 130 246 / 0.3); }
+    .project-purple { background: rgb(168 85 247 / 0.15); color: rgb(192 132 252); border: 1px solid rgb(168 85 247 / 0.3); }
+    .project-pink { background: rgb(236 72 153 / 0.15); color: rgb(244 114 182); border: 1px solid rgb(236 72 153 / 0.3); }
+    
+    .icon-red { color: rgb(248 113 113); }
+    .icon-orange { color: rgb(251 146 60); }
+    .icon-yellow { color: rgb(250 204 21); }
+    .icon-green { color: rgb(74 222 128); }
+    .icon-teal { color: rgb(45 212 191); }
+    .icon-blue { color: rgb(96 165 250); }
+    .icon-purple { color: rgb(192 132 252); }
+    .icon-pink { color: rgb(244 114 182); }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.25s ease-out; }
+    .animate-slide-up { animation: slideUp 0.3s ease-out; }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, hsl(var(--primary)), hsl(217.2 91.2% 50%));
+      color: white;
+      font-weight: 500;
+      box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
+      transition: all 0.2s ease;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px hsl(var(--primary) / 0.4);
+    }
+    
+    .btn-secondary {
+      background: hsl(var(--secondary));
+      color: hsl(var(--foreground));
+      border: 1px solid hsl(var(--border));
+      transition: all 0.2s ease;
+    }
+    .btn-secondary:hover {
+      background: hsl(var(--accent));
+      border-color: hsl(var(--primary) / 0.5);
+    }
+    
+    .todo-card {
+      transition: all 0.2s ease;
+    }
+    .todo-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-backdrop {
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      background: hsl(var(--primary));
+      color: white;
+      border-radius: 8px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div id="app"></div>
+  
+  <script>
+    // ========== 数据模型 ==========
+    const STORAGE_KEYS = {
+      TODOS: 'todoflow_todos',
+      PROJECTS: 'todoflow_projects',
+      SETTINGS: 'todoflow_settings',
+    };
+
+    const projectColors = ['blue', 'green', 'purple', 'orange', 'teal', 'pink', 'red', 'yellow'];
+    
+    // 默认周报周期模板
+    const reportTemplates = [
+      { id: 'lastWeek', name: '上周（周一到周日）' },
+      { id: 'thisWeek', name: '本周（周一到今天）' },
+      { id: 'lastThuToThisFri', name: '上周四到本周五' },
+      { id: 'last7Days', name: '最近7天' },
+      { id: 'last30Days', name: '最近30天' },
+      { id: 'lastMonth', name: '上个月' },
+    ];
+
+    // ========== 工具函数 ==========
+    function generateId(prefix = 'id') {
+      return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    function formatDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+    }
+
+    function formatFullDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      return d.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function isOverdue(date) {
+      if (!date) return false;
+      const d = new Date(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return d < today;
+    }
+
+    // ========== 存储操作 ==========
+    function loadTodos() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEYS.TODOS);
+        return data ? JSON.parse(data) : [];
+      } catch { return []; }
+    }
+
+    function saveTodos(todos) {
+      localStorage.setItem(STORAGE_KEYS.TODOS, JSON.stringify(todos));
+    }
+
+    function loadProjects() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEYS.PROJECTS);
+        return data ? JSON.parse(data) : [];
+      } catch { return []; }
+    }
+
+    function saveProjects(projects) {
+      localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+    }
+
+    // 计算存储大小
+    function getStorageSize() {
+      const todos = localStorage.getItem(STORAGE_KEYS.TODOS) || '';
+      const projects = localStorage.getItem(STORAGE_KEYS.PROJECTS) || '';
+      const totalBytes = new Blob([todos + projects]).size;
+      return {
+        bytes: totalBytes,
+        kb: (totalBytes / 1024).toFixed(1),
+        mb: (totalBytes / 1024 / 1024).toFixed(2),
+        todos: JSON.parse(todos || '[]').length,
+        projects: JSON.parse(projects || '[]').length,
+      };
+    }
+
+    // 清理旧数据（已完成超过30天的任务）
+    function cleanupOldData() {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const todos = loadTodos();
+      const cleanedTodos = todos.filter(t => {
+        if (t.status === 'active') return true;
+        const completedDate = t.completedAt ? new Date(t.completedAt) : new Date(t.updatedAt);
+        return completedDate >= thirtyDaysAgo;
+      });
+      
+      const removedCount = todos.length - cleanedTodos.length;
+      saveTodos(cleanedTodos);
+      return removedCount;
+    }
+
+    // 导出数据
+    function exportData() {
+      const data = {
+        todos: loadTodos(),
+        projects: loadProjects(),
+        exportedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `todoflow_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ========== 周报生成 ==========
+    function generateWeeklyReport(todos, projects, startDate, endDate) {
+      const periodTodos = todos.filter(t => {
+        const created = new Date(t.createdAt);
+        const completed = t.completedAt ? new Date(t.completedAt) : null;
+        created.setHours(0, 0, 0, 0);
+        if (completed) completed.setHours(0, 0, 0, 0);
+        return (created >= startDate && created <= endDate) ||
+               (completed && completed >= startDate && completed <= endDate);
+      });
+
+      const completedTodos = periodTodos.filter(t => t.status === 'completed');
+      const cancelledTodos = periodTodos.filter(t => t.status === 'cancelled');
+      const activeTodos = periodTodos.filter(t => t.status === 'active');
+
+      const getProjectName = (projectId) => {
+        if (!projectId) return '收件箱';
+        const project = projects.find(p => p.id === projectId);
+        return project?.name || '未知项目';
+      };
+
+      const byProject = {};
+      completedTodos.forEach(todo => {
+        const projectName = getProjectName(todo.projectId);
+        if (!byProject[projectName]) byProject[projectName] = [];
+        byProject[projectName].push(todo);
+      });
+
+      let report = `# 周报：${formatFullDate(startDate)} - ${formatFullDate(endDate)}\n\n`;
+      report += `## 📊 本周概览\n`;
+      report += `- 新建任务：${periodTodos.length} 个\n`;
+      report += `- 完成任务：${completedTodos.length} 个\n`;
+      report += `- 取消任务：${cancelledTodos.length} 个\n`;
+      if (periodTodos.length > 0) {
+        report += `- 完成率：${Math.round((completedTodos.length / periodTodos.length) * 100)}%\n`;
+      }
+      report += `\n`;
+
+      if (Object.keys(byProject).length > 0) {
+        report += `## 📁 项目进展\n\n`;
+        Object.entries(byProject).forEach(([projectName, todos]) => {
+          report += `### ${projectName}\n`;
+          todos.forEach(todo => {
+            report += `- ✅ ${todo.title}\n`;
+            if (todo.followUpTask) {
+              report += `  - 📌 后续：${todo.followUpTask}\n`;
+            }
+          });
+          report += `\n`;
+        });
+      }
+
+      if (cancelledTodos.length > 0) {
+        report += `## ❌ 已取消\n\n`;
+        cancelledTodos.forEach(todo => {
+          report += `- ${todo.title}\n`;
+        });
+        report += `\n`;
+      }
+
+      if (activeTodos.length > 0) {
+        report += `## 🔄 进行中\n\n`;
+        activeTodos.forEach(todo => {
+          report += `- ${todo.title} (${getProjectName(todo.projectId)})\n`;
+        });
+      }
+
+      return report;
+    }
+
+    // ========== 应用状态 ==========
+    let state = {
+      todos: loadTodos(),
+      projects: loadProjects(),
+      selectedProjectId: 'all',
+      showTaskModal: false,
+      editingTodo: null,
+      showProjectModal: false,
+      showReportModal: false,
+      showSettingsModal: false,
+      reportContent: '',
+      reportStartDate: '',
+      reportEndDate: '',
+      selectedReportTemplate: 'lastThuToThisFri',
+      // 表单
+      taskTitle: '',
+      taskProjectId: '',
+      taskDueDate: '',
+      taskFollowUp: '',
+      projectName: '',
+      projectColor: 'blue',
+      // Toast
+      toastMessage: '',
+    };
+
+    // 初始化周报日期
+    function initReportDates() {
+      const result = calculateDateRange('lastThuToThisFri');
+      state.reportStartDate = result.start;
+      state.reportEndDate = result.end;
+    }
+    initReportDates();
+
+    // 计算日期范围
+    function calculateDateRange(template) {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      
+      switch (template) {
+        case 'lastWeek': {
+          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          const lastMonday = new Date(today);
+          lastMonday.setDate(today.getDate() - diff - 7);
+          const lastSunday = new Date(lastMonday);
+          lastSunday.setDate(lastMonday.getDate() + 6);
+          return { start: lastMonday.toISOString().split('T')[0], end: lastSunday.toISOString().split('T')[0] };
+        }
+        case 'thisWeek': {
+          const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          const thisMonday = new Date(today);
+          thisMonday.setDate(today.getDate() - diff);
+          return { start: thisMonday.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+        }
+        case 'lastThuToThisFri': {
+          // 上周四
+          const thursday = 4;
+          const diffToThursday = (dayOfWeek + 7 - thursday) % 7;
+          const lastThursday = new Date(today);
+          lastThursday.setDate(today.getDate() - diffToThursday - 7);
+          // 本周五
+          const friday = 5;
+          const diffToFriday = (friday - dayOfWeek + 7) % 7;
+          const thisFriday = new Date(today);
+          if (diffToFriday === 0) {
+            // 今天是周五
+          } else {
+            thisFriday.setDate(today.getDate() + diffToFriday);
+          }
+          return { start: lastThursday.toISOString().split('T')[0], end: thisFriday.toISOString().split('T')[0] };
+        }
+        case 'last7Days': {
+          const start = new Date(today);
+          start.setDate(today.getDate() - 6);
+          return { start: start.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+        }
+        case 'last30Days': {
+          const start = new Date(today);
+          start.setDate(today.getDate() - 29);
+          return { start: start.toISOString().split('T')[0], end: today.toISOString().split('T')[0] };
+        }
+        case 'lastMonth': {
+          const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+          const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+          return { start: firstDayLastMonth.toISOString().split('T')[0], end: lastDayLastMonth.toISOString().split('T')[0] };
+        }
+        default:
+          return { start: state.reportStartDate, end: state.reportEndDate };
+      }
+    }
+
+    // 显示 Toast
+    function showToast(message) {
+      state.toastMessage = message;
+      render();
+      setTimeout(() => {
+        state.toastMessage = '';
+        render();
+      }, 2500);
+    }
+
+    // ========== 渲染函数 ==========
+    function getProjectName(projectId) {
+      if (!projectId) return '收件箱';
+      return state.projects.find(p => p.id === projectId)?.name || '未知项目';
+    }
+
+    function getProjectTodoCount(projectId) {
+      return state.todos.filter(t => t.projectId === projectId && t.status === 'active').length;
+    }
+
+    function render() {
+      const { todos, projects, selectedProjectId } = state;
+      
+      const filteredTodos = todos.filter(todo => {
+        if (selectedProjectId === 'all') return true;
+        return todo.projectId === selectedProjectId;
+      });
+
+      const activeTodos = filteredTodos.filter(t => t.status === 'active').sort((a, b) => a.order - b.order);
+      const completedTodos = filteredTodos.filter(t => t.status === 'completed').sort((a, b) => 
+        new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
+      );
+      const cancelledTodos = filteredTodos.filter(t => t.status === 'cancelled').sort((a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+
+      const inboxCount = getProjectTodoCount(null);
+      const allCount = todos.filter(t => t.status === 'active').length;
+
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="min-h-screen flex">
+          <!-- 侧边栏 -->
+          <aside class="w-56 bg-card/50 border-r border-border flex flex-col">
+            <div class="p-4 border-b border-border">
+              <h1 class="text-lg font-bold flex items-center gap-2 text-foreground">
+                <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                TodoFlow
+              </h1>
+            </div>
+
+            <nav class="flex-1 p-2 overflow-y-auto">
+              <button onclick="selectProject('all')" class="${selectedProjectId === 'all' ? 'bg-primary/10 text-primary border-l-2 border-primary' : 'text-muted-foreground hover:bg-accent'} w-full flex items-center gap-2.5 px-3 py-2 rounded-r-md text-sm transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 5h10"></path>
+                </svg>
+                <span>全部任务</span>
+                <span class="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">${allCount}</span>
+              </button>
+
+              <button onclick="selectProject(null)" class="${selectedProjectId === null ? 'bg-primary/10 text-primary border-l-2 border-primary' : 'text-muted-foreground hover:bg-accent'} w-full flex items-center gap-2.5 px-3 py-2 rounded-r-md text-sm transition-colors mt-0.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+                <span>收件箱</span>
+                <span class="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">${inboxCount}</span>
+              </button>
+
+              <div class="mt-4">
+                <div class="px-3 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center justify-between">
+                  <span>项目</span>
+                  <button onclick="openProjectModal()" class="hover:text-primary transition-colors p-1 rounded hover:bg-accent">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                  </button>
+                </div>
+                ${projects.map(project => `
+                  <div class="${selectedProjectId === project.id ? 'bg-primary/10 text-primary border-l-2 border-primary' : 'text-muted-foreground hover:bg-accent'} group flex items-center gap-2.5 px-3 py-2 rounded-r-md text-sm transition-colors cursor-pointer" onclick="selectProject('${project.id}')">
+                    <span class="w-2 h-2 rounded-full bg-current icon-${project.color}"></span>
+                    <span class="truncate flex-1">${project.name}</span>
+                    <span class="text-xs opacity-60">${getProjectTodoCount(project.id)}</span>
+                    <button onclick="event.stopPropagation(); deleteProject('${project.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-0.5">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            </nav>
+
+            <!-- 底部设置 -->
+            <div class="p-2 border-t border-border">
+              <button onclick="openSettingsModal()" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-muted-foreground hover:bg-accent hover:text-foreground text-sm transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                数据管理
+              </button>
+            </div>
+          </aside>
+
+          <!-- 主内容区 -->
+          <main class="flex-1 flex flex-col overflow-hidden">
+            <header class="h-14 border-b border-border flex items-center justify-between px-6 bg-card/30">
+              <div class="flex items-center gap-2 text-sm">
+                <span class="text-muted-foreground">${selectedProjectId === 'all' ? '全部任务' : getProjectName(selectedProjectId)}</span>
+                <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+                <span class="font-medium">看板</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="openReportModal()" class="btn-secondary flex items-center justify-center gap-2 h-8 px-3 rounded-md text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  生成周报
+                </button>
+                <button onclick="openTaskModal()" class="btn-primary flex items-center justify-center gap-2 h-8 px-4 rounded-md text-sm">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                  </svg>
+                  新建任务
+                </button>
+              </div>
+            </header>
+
+            <div class="flex-1 overflow-x-auto p-6">
+              <div class="flex gap-4 h-full min-w-max">
+                <!-- 进行中 -->
+                <div class="w-72 flex flex-col">
+                  <div class="flex items-center gap-2 mb-3 px-1">
+                    <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+                    <h2 class="font-medium text-sm">进行中</h2>
+                    <span class="text-xs text-muted-foreground">(${activeTodos.length})</span>
+                  </div>
+                  <div class="flex-1 space-y-2 overflow-y-auto pr-1">
+                    ${activeTodos.map(todo => `
+                      <div class="todo-card bg-card border border-border rounded-lg p-3 cursor-pointer hover:border-primary/40 group animate-fade-in" onclick="editTask('${todo.id}')">
+                        <div class="flex items-start gap-2.5">
+                          <button onclick="event.stopPropagation(); completeTask('${todo.id}')" class="mt-0.5 w-4 h-4 rounded-full border-2 border-primary/40 hover:bg-primary hover:border-primary transition-all flex items-center justify-center flex-shrink-0">
+                            <svg class="w-2.5 h-2.5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                          </button>
+                          <div class="flex-1 min-w-0">
+                            <p class="text-sm leading-snug">${todo.title}</p>
+                            ${todo.followUpTask ? `
+                              <p class="text-xs text-muted-foreground/70 mt-1 flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                </svg>
+                                <span class="truncate">${todo.followUpTask}</span>
+                              </p>
+                            ` : ''}
+                            <div class="flex items-center gap-1.5 mt-2 flex-wrap">
+                              <span class="project-${todo.projectId ? (projects.find(p => p.id === todo.projectId)?.color || 'blue') : 'blue'} text-[10px] px-1.5 py-0.5 rounded">
+                                ${getProjectName(todo.projectId)}
+                              </span>
+                              ${todo.dueDate ? `
+                                <span class="text-[10px] flex items-center gap-0.5 ${isOverdue(todo.dueDate) ? 'text-destructive' : 'text-muted-foreground'}">
+                                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                  </svg>
+                                  ${formatDate(todo.dueDate)}
+                                </span>
+                              ` : ''}
+                            </div>
+                          </div>
+                          <button onclick="event.stopPropagation(); cancelTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 flex-shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    `).join('')}
+                    ${activeTodos.length === 0 ? '<div class="text-center text-muted-foreground/50 text-sm py-12">暂无进行中的任务</div>' : ''}
+                  </div>
+                </div>
+
+                <!-- 已完成 -->
+                <div class="w-72 flex flex-col">
+                  <div class="flex items-center gap-2 mb-3 px-1">
+                    <div class="w-2.5 h-2.5 rounded-full bg-success"></div>
+                    <h2 class="font-medium text-sm">已完成</h2>
+                    <span class="text-xs text-muted-foreground">(${completedTodos.length})</span>
+                  </div>
+                  <div class="flex-1 space-y-2 overflow-y-auto pr-1">
+                    ${completedTodos.map(todo => `
+                      <div class="bg-card/50 border border-border/50 rounded-lg p-3 opacity-50 hover:opacity-100 transition-opacity group">
+                        <div class="flex items-start gap-2.5">
+                          <div class="mt-0.5 w-4 h-4 rounded-full bg-success/80 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <p class="text-sm text-muted-foreground line-through">${todo.title}</p>
+                            <span class="text-[10px] text-muted-foreground/60 mt-1 block">${formatDate(todo.completedAt)}</span>
+                          </div>
+                          <button onclick="deleteTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 flex-shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    `).join('')}
+                    ${completedTodos.length === 0 ? '<div class="text-center text-muted-foreground/50 text-sm py-12">暂无已完成的任务</div>' : ''}
+                  </div>
+                </div>
+
+                <!-- 已取消 -->
+                <div class="w-72 flex flex-col">
+                  <div class="flex items-center gap-2 mb-3 px-1">
+                    <div class="w-2.5 h-2.5 rounded-full bg-destructive"></div>
+                    <h2 class="font-medium text-sm">已取消</h2>
+                    <span class="text-xs text-muted-foreground">(${cancelledTodos.length})</span>
+                  </div>
+                  <div class="flex-1 space-y-2 overflow-y-auto pr-1">
+                    ${cancelledTodos.map(todo => `
+                      <div class="bg-card/50 border border-border/50 rounded-lg p-3 opacity-50 hover:opacity-100 transition-opacity group">
+                        <div class="flex items-start gap-2.5">
+                          <div class="mt-0.5 w-4 h-4 rounded-full bg-destructive/80 flex items-center justify-center flex-shrink-0">
+                            <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                          </div>
+                          <div class="flex-1 min-w-0">
+                            <p class="text-sm text-muted-foreground line-through">${todo.title}</p>
+                            <span class="text-[10px] text-muted-foreground/60 mt-1 block">${formatDate(todo.updatedAt)}</span>
+                          </div>
+                          <button onclick="deleteTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 flex-shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    `).join('')}
+                    ${cancelledTodos.length === 0 ? '<div class="text-center text-muted-foreground/50 text-sm py-12">暂无已取消的任务</div>' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+
+        <!-- Toast -->
+        ${state.toastMessage ? `<div class="toast">${state.toastMessage}</div>` : ''}
+
+        <!-- 任务弹窗 -->
+        ${state.showTaskModal ? `
+          <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeTaskModal()">
+            <div class="bg-card border border-border rounded-xl w-full max-w-md mx-4 animate-slide-up shadow-2xl">
+              <div class="p-4 border-b border-border flex items-center justify-between">
+                <h3 class="font-semibold">${state.editingTodo ? '编辑任务' : '新建任务'}</h3>
+                <button onclick="closeTaskModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="p-4 space-y-4">
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">任务标题 <span class="text-destructive">*</span></label>
+                  <input type="text" id="taskTitleInput" placeholder="输入任务标题..." value="${state.taskTitle}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">所属项目</label>
+                  <select id="taskProjectSelect" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
+                    <option value="" ${!state.taskProjectId ? 'selected' : ''}>收件箱</option>
+                    ${projects.map(p => `<option value="${p.id}" ${state.taskProjectId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+                  </select>
+                </div>
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">截止日期</label>
+                  <input type="date" id="taskDueDateInput" value="${state.taskDueDate}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">
+                    延续任务
+                    <span class="text-xs text-muted-foreground font-normal ml-1">（完成后自动创建新任务）</span>
+                  </label>
+                  <textarea id="taskFollowUpInput" placeholder="输入延续任务描述..." rows="2" class="w-full min-h-[60px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none">${state.taskFollowUp}</textarea>
+                </div>
+              </div>
+              <div class="p-4 border-t border-border flex ${state.editingTodo ? 'justify-between' : 'justify-end'} gap-2">
+                ${state.editingTodo ? `
+                  <button onclick="cancelTask(state.editingTodo.id); closeTaskModal();" class="h-9 px-3 rounded-lg text-sm border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">取消任务</button>
+                  <div class="flex gap-2">
+                    <button onclick="completeTaskFromModal()" class="h-9 px-4 rounded-lg text-sm bg-success text-white hover:bg-success/90 transition-colors flex items-center gap-1.5">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                      完成任务
+                    </button>
+                    <button onclick="saveTask()" class="btn-primary h-9 px-4 rounded-lg text-sm">保存修改</button>
+                  </div>
+                ` : `
+                  <button onclick="closeTaskModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">取消</button>
+                  <button onclick="saveTask()" class="btn-primary h-9 px-4 rounded-lg text-sm">创建</button>
+                `}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 项目弹窗 -->
+        ${state.showProjectModal ? `
+          <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeProjectModal()">
+            <div class="bg-card border border-border rounded-xl w-full max-w-sm mx-4 animate-slide-up shadow-2xl">
+              <div class="p-4 border-b border-border flex items-center justify-between">
+                <h3 class="font-semibold">新建项目</h3>
+                <button onclick="closeProjectModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="p-4 space-y-4">
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">项目名称 <span class="text-destructive">*</span></label>
+                  <input type="text" id="projectNameInput" placeholder="输入项目名称..." value="${state.projectName}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">项目颜色</label>
+                  <div class="flex gap-2 flex-wrap">
+                    ${projectColors.map(color => `
+                      <button onclick="selectProjectColor('${color}')" class="w-7 h-7 rounded-full transition-all ${state.projectColor === color ? 'ring-2 ring-offset-2 ring-offset-background ring-primary scale-110' : 'hover:scale-110'} icon-${color}" style="background: currentColor; opacity: 0.8;"></button>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+              <div class="p-4 border-t border-border flex justify-end gap-2">
+                <button onclick="closeProjectModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">取消</button>
+                <button onclick="createProject()" class="btn-primary h-9 px-4 rounded-lg text-sm">创建</button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 周报弹窗 -->
+        ${state.showReportModal ? `
+          <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeReportModal()">
+            <div class="bg-card border border-border rounded-xl w-full max-w-2xl mx-4 max-h-[85vh] flex flex-col animate-slide-up shadow-2xl">
+              <div class="p-4 border-b border-border flex items-center justify-between">
+                <h3 class="font-semibold">生成周报</h3>
+                <button onclick="closeReportModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="p-4 border-b border-border space-y-3">
+                <div class="flex flex-wrap gap-2">
+                  ${reportTemplates.map(t => `
+                    <button onclick="selectReportTemplate('${t.id}')" class="${state.selectedReportTemplate === t.id ? 'bg-primary text-white' : 'btn-secondary'} h-7 px-2.5 rounded text-xs transition-colors">${t.name}</button>
+                  `).join('')}
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1.5 flex-1">
+                    <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <input type="date" id="reportStartDateInput" value="${state.reportStartDate}" class="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" onchange="clearReportTemplate()" />
+                  </div>
+                  <span class="text-muted-foreground text-sm">至</span>
+                  <div class="flex items-center gap-1.5 flex-1">
+                    <svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <input type="date" id="reportEndDateInput" value="${state.reportEndDate}" class="flex-1 h-8 rounded-lg border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" onchange="clearReportTemplate()" />
+                  </div>
+                  <button onclick="generateReportFromInputs()" class="btn-primary h-8 px-3 rounded-lg text-sm">生成</button>
+                </div>
+              </div>
+              <div class="flex-1 overflow-y-auto p-4">
+                <pre class="text-sm whitespace-pre-wrap font-mono bg-secondary/30 p-4 rounded-lg border border-border/50">${state.reportContent || '点击"生成"按钮生成周报'}</pre>
+              </div>
+              <div class="p-4 border-t border-border flex justify-end gap-2">
+                <button onclick="closeReportModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">关闭</button>
+                <button onclick="copyReport()" class="btn-primary h-9 px-4 rounded-lg text-sm">复制到剪贴板</button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 设置弹窗 -->
+        ${state.showSettingsModal ? `
+          <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeSettingsModal()">
+            <div class="bg-card border border-border rounded-xl w-full max-w-sm mx-4 animate-slide-up shadow-2xl">
+              <div class="p-4 border-b border-border flex items-center justify-between">
+                <h3 class="font-semibold">数据管理</h3>
+                <button onclick="closeSettingsModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="p-4 space-y-4">
+                ${(() => {
+                  const size = getStorageSize();
+                  return `
+                    <div class="bg-secondary/30 rounded-lg p-3 border border-border/50">
+                      <div class="text-sm font-medium mb-2">存储统计</div>
+                      <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="flex justify-between"><span class="text-muted-foreground">任务数量</span><span>${size.todos} 个</span></div>
+                        <div class="flex justify-between"><span class="text-muted-foreground">项目数量</span><span>${size.projects} 个</span></div>
+                        <div class="flex justify-between col-span-2"><span class="text-muted-foreground">占用空间</span><span>${size.kb} KB</span></div>
+                      </div>
+                    </div>
+                  `;
+                })()}
+                <div class="text-xs text-muted-foreground bg-secondary/20 rounded-lg p-3 border border-border/30">
+                  <p class="mb-1">💡 <strong>存储说明</strong></p>
+                  <p>LocalStorage 限制约 5MB。当前数据量远低于限制，但随着使用时间增长，建议定期清理或导出备份。</p>
+                </div>
+              </div>
+              <div class="p-4 border-t border-border space-y-2">
+                <button onclick="handleExportData()" class="btn-secondary w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                  </svg>
+                  导出备份
+                </button>
+                <button onclick="handleCleanupData()" class="w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2 border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                  </svg>
+                  清理30天前的已完成任务
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      `;
+    }
+
+    // ========== 事件处理 ==========
+    function selectProject(projectId) {
+      state.selectedProjectId = projectId;
+      render();
+    }
+
+    function openTaskModal() {
+      state.showTaskModal = true;
+      state.editingTodo = null;
+      state.taskTitle = '';
+      state.taskProjectId = '';
+      state.taskDueDate = '';
+      state.taskFollowUp = '';
+      render();
+      setTimeout(() => document.getElementById('taskTitleInput')?.focus(), 100);
+    }
+
+    function editTask(todoId) {
+      const todo = state.todos.find(t => t.id === todoId);
+      if (!todo) return;
+      state.showTaskModal = true;
+      state.editingTodo = todo;
+      state.taskTitle = todo.title;
+      state.taskProjectId = todo.projectId || '';
+      state.taskDueDate = todo.dueDate || '';
+      state.taskFollowUp = todo.followUpTask || '';
+      render();
+    }
+
+    function closeTaskModal() {
+      state.showTaskModal = false;
+      state.editingTodo = null;
+      render();
+    }
+
+    function saveTask() {
+      const title = document.getElementById('taskTitleInput')?.value?.trim();
+      if (!title) {
+        showToast('请输入任务标题');
+        return;
+      }
+
+      const projectId = document.getElementById('taskProjectSelect')?.value || null;
+      const dueDate = document.getElementById('taskDueDateInput')?.value || null;
+      const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
+
+      if (state.editingTodo) {
+        state.todos = state.todos.map(t => 
+          t.id === state.editingTodo.id 
+            ? { ...t, title, projectId, dueDate, followUpTask: followUp, updatedAt: new Date().toISOString() }
+            : t
+        );
+        showToast('任务已更新');
+      } else {
+        const newTodo = {
+          id: generateId('todo'),
+          title,
+          projectId,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          completedAt: null,
+          dueDate,
+          followUpTask: followUp,
+          order: state.todos.filter(t => t.status === 'active').length,
+        };
+        state.todos.push(newTodo);
+        showToast('任务已创建');
+      }
+
+      saveTodos(state.todos);
+      closeTaskModal();
+    }
+
+    // 从编辑弹窗完成任务（可填写延续任务）
+    function completeTaskFromModal() {
+      if (!state.editingTodo) return;
+      
+      const title = document.getElementById('taskTitleInput')?.value?.trim();
+      if (!title) {
+        showToast('请输入任务标题');
+        return;
+      }
+
+      const projectId = document.getElementById('taskProjectSelect')?.value || null;
+      const dueDate = document.getElementById('taskDueDateInput')?.value || null;
+      const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
+
+      const now = new Date().toISOString();
+      
+      // 先更新并完成任务
+      state.todos = state.todos.map(t => 
+        t.id === state.editingTodo.id 
+          ? { ...t, title, projectId, dueDate, followUpTask: followUp, status: 'completed', completedAt: now, updatedAt: now }
+          : t
+      );
+
+      // 如果有延续任务，创建新任务
+      if (followUp) {
+        const newTodo = {
+          id: generateId('todo'),
+          title: followUp,
+          projectId: projectId,
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+          dueDate: null,
+          followUpTask: null,
+          order: state.todos.filter(t => t.status === 'active').length,
+        };
+        state.todos.push(newTodo);
+        showToast('已完成，已创建延续任务');
+      } else {
+        showToast('任务已完成');
+      }
+
+      saveTodos(state.todos);
+      closeTaskModal();
+    }
+
+    function completeTask(todoId) {
+      const todo = state.todos.find(t => t.id === todoId);
+      if (!todo) return;
+
+      const now = new Date().toISOString();
+      state.todos = state.todos.map(t => 
+        t.id === todoId ? { ...t, status: 'completed', completedAt: now, updatedAt: now } : t
+      );
+
+      if (todo.followUpTask) {
+        const newTodo = {
+          id: generateId('todo'),
+          title: todo.followUpTask,
+          projectId: todo.projectId,
+          status: 'active',
+          createdAt: now,
+          updatedAt: now,
+          completedAt: null,
+          dueDate: null,
+          followUpTask: null,
+          order: state.todos.filter(t => t.status === 'active').length,
+        };
+        state.todos.push(newTodo);
+        showToast('已完成，已创建延续任务');
+      } else {
+        showToast('任务已完成');
+      }
+
+      saveTodos(state.todos);
+      render();
+    }
+
+    function cancelTask(todoId) {
+      const now = new Date().toISOString();
+      state.todos = state.todos.map(t => 
+        t.id === todoId ? { ...t, status: 'cancelled', updatedAt: now } : t
+      );
+      saveTodos(state.todos);
+      showToast('任务已取消');
+      render();
+    }
+
+    function deleteTask(todoId) {
+      state.todos = state.todos.filter(t => t.id !== todoId);
+      saveTodos(state.todos);
+      showToast('任务已删除');
+      render();
+    }
+
+    function openProjectModal() {
+      state.showProjectModal = true;
+      state.projectName = '';
+      state.projectColor = 'blue';
+      render();
+      setTimeout(() => document.getElementById('projectNameInput')?.focus(), 100);
+    }
+
+    function closeProjectModal() {
+      state.showProjectModal = false;
+      render();
+    }
+
+    function selectProjectColor(color) {
+      state.projectColor = color;
+      render();
+    }
+
+    function createProject() {
+      const name = document.getElementById('projectNameInput')?.value?.trim();
+      if (!name) {
+        showToast('请输入项目名称');
+        return;
+      }
+
+      const newProject = {
+        id: generateId('proj'),
+        name,
+        color: state.projectColor,
+        createdAt: new Date().toISOString(),
+        order: state.projects.length,
+      };
+      state.projects.push(newProject);
+      saveProjects(state.projects);
+      showToast('项目已创建');
+      closeProjectModal();
+    }
+
+    function deleteProject(projectId) {
+      state.projects = state.projects.filter(p => p.id !== projectId);
+      state.todos = state.todos.map(t => 
+        t.projectId === projectId ? { ...t, projectId: null } : t
+      );
+      if (state.selectedProjectId === projectId) {
+        state.selectedProjectId = 'all';
+      }
+      saveProjects(state.projects);
+      saveTodos(state.todos);
+      showToast('项目已删除');
+      render();
+    }
+
+    function openReportModal() {
+      state.showReportModal = true;
+      generateReportFromInputs();
+      render();
+    }
+
+    function closeReportModal() {
+      state.showReportModal = false;
+      render();
+    }
+
+    function selectReportTemplate(templateId) {
+      state.selectedReportTemplate = templateId;
+      const result = calculateDateRange(templateId);
+      state.reportStartDate = result.start;
+      state.reportEndDate = result.end;
+      generateReportFromInputs();
+      render();
+    }
+
+    function clearReportTemplate() {
+      state.selectedReportTemplate = '';
+    }
+
+    function generateReportFromInputs() {
+      const startStr = document.getElementById('reportStartDateInput')?.value || state.reportStartDate;
+      const endStr = document.getElementById('reportEndDateInput')?.value || state.reportEndDate;
+      
+      state.reportStartDate = startStr;
+      state.reportEndDate = endStr;
+
+      const start = new Date(startStr);
+      const end = new Date(endStr);
+      end.setHours(23, 59, 59, 999);
+
+      state.reportContent = generateWeeklyReport(state.todos, state.projects, start, end);
+      render();
+    }
+
+    function copyReport() {
+      if (!state.reportContent) {
+        showToast('请先生成周报');
+        return;
+      }
+      navigator.clipboard.writeText(state.reportContent).then(() => {
+        showToast('周报已复制到剪贴板');
+      });
+    }
+
+    function openSettingsModal() {
+      state.showSettingsModal = true;
+      render();
+    }
+
+    function closeSettingsModal() {
+      state.showSettingsModal = false;
+      render();
+    }
+
+    function handleExportData() {
+      exportData();
+      showToast('数据已导出');
+    }
+
+    function handleCleanupData() {
+      const removed = cleanupOldData();
+      state.todos = loadTodos();
+      render();
+      showToast(`已清理 ${removed} 条旧任务`);
+    }
+
+    // 初始化渲染
+    render();
+  </script>
+</body>
+</html>
