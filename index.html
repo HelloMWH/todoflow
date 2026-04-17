@@ -588,6 +588,7 @@ ${(() => {
       taskTitle: '',
       taskProjectId: '',
       taskDueDate: '',
+      taskUrl: '',
       taskFollowUp: '',
       projectName: '',
       projectColor: 'blue',
@@ -691,7 +692,46 @@ ${(() => {
         return todo.projectId === selectedProjectId;
       });
 
-      const activeTodos = filteredTodos.filter(t => t.status === 'active').sort((a, b) => a.order - b.order);
+      // 进行中任务排序：DDL 优先，无 DDL 按录入时间
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const activeTodos = filteredTodos.filter(t => t.status === 'active').sort((a, b) => {
+        const aDue = a.dueDate ? new Date(a.dueDate) : null;
+        const bDue = b.dueDate ? new Date(b.dueDate) : null;
+
+        // 计算与今天的差异（天数）
+        const getDiffDays = (due) => {
+          if (!due) return null;
+          const d = new Date(due);
+          d.setHours(0, 0, 0, 0);
+          return Math.ceil((d - today) / (1000 * 60 * 60 * 24));
+        };
+
+        const aDiff = getDiffDays(aDue);
+        const bDiff = getDiffDays(bDue);
+
+        // 有 DDL 的任务优先于无 DDL 的
+        if (aDiff !== null && bDiff === null) return -1;
+        if (aDiff === null && bDiff !== null) return 1;
+
+        // 都有 DDL
+        if (aDiff !== null && bDiff !== null) {
+          // 负数（已过期）优先于正数（未到期）
+          const aIsOverdue = aDiff < 0;
+          const bIsOverdue = bDiff < 0;
+          if (aIsOverdue && !bIsOverdue) return -1;
+          if (!aIsOverdue && bIsOverdue) return 1;
+
+          // 同为负数：绝对值越大越靠前（过期越久越优先）
+          if (aIsOverdue && bIsOverdue) return aDiff - bDiff;
+
+          // 同为正数：值越小越靠前（临近日期越优先）
+          return aDiff - bDiff;
+        }
+
+        // 都无 DDL：按录入时间，新的靠前
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
       const completedTodos = filteredTodos.filter(t => t.status === 'completed').sort((a, b) => 
         new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime()
       );
@@ -835,6 +875,14 @@ ${(() => {
                                   ${formatDate(todo.dueDate)}
                                 </span>
                               ` : ''}
+                              ${todo.url ? `
+                                <a href="${todo.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-[10px] flex items-center gap-0.5 text-primary/70 hover:text-primary transition-colors">
+                                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                  </svg>
+                                  文档
+                                </a>
+                              ` : ''}
                             </div>
                           </div>
                           <button onclick="event.stopPropagation(); cancelTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 flex-shrink-0">
@@ -867,7 +915,17 @@ ${(() => {
                           </div>
                           <div class="flex-1 min-w-0">
                             <p class="text-sm text-muted-foreground line-through">${todo.title}</p>
-                            <span class="text-[10px] text-muted-foreground/60 mt-1 block">${formatDate(todo.completedAt)}</span>
+                            <div class="flex items-center gap-2 mt-1">
+                              <span class="text-[10px] text-muted-foreground/60">${formatDate(todo.completedAt)}</span>
+                              ${todo.url ? `
+                                <a href="${todo.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-[10px] flex items-center gap-0.5 text-primary/70 hover:text-primary transition-colors">
+                                  <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
+                                  </svg>
+                                  文档
+                                </a>
+                              ` : ''}
+                            </div>
                           </div>
                           <button onclick="deleteTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 flex-shrink-0">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -947,6 +1005,13 @@ ${(() => {
                 <div>
                   <label class="text-sm font-medium mb-1.5 block">截止日期</label>
                   <input type="date" id="taskDueDateInput" value="${state.taskDueDate}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium mb-1.5 block">
+                    关联文档
+                    <span class="text-xs text-muted-foreground font-normal ml-1">（可填写文档链接等）</span>
+                  </label>
+                  <input type="url" id="taskUrlInput" placeholder="https://..." value="${state.taskUrl}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
                   <label class="text-sm font-medium mb-1.5 block">
@@ -1208,6 +1273,7 @@ ${(() => {
       state.taskTitle = '';
       state.taskProjectId = '';
       state.taskDueDate = '';
+      state.taskUrl = '';
       state.taskFollowUp = '';
       render();
       setTimeout(() => document.getElementById('taskTitleInput')?.focus(), 100);
@@ -1221,6 +1287,7 @@ ${(() => {
       state.taskTitle = todo.title;
       state.taskProjectId = todo.projectId || '';
       state.taskDueDate = todo.dueDate || '';
+      state.taskUrl = todo.url || '';
       state.taskFollowUp = todo.followUpTask || '';
       render();
     }
@@ -1240,12 +1307,13 @@ ${(() => {
 
       const projectId = document.getElementById('taskProjectSelect')?.value || null;
       const dueDate = document.getElementById('taskDueDateInput')?.value || null;
+      const url = document.getElementById('taskUrlInput')?.value?.trim() || null;
       const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
 
       if (state.editingTodo) {
         state.todos = state.todos.map(t => 
           t.id === state.editingTodo.id 
-            ? { ...t, title, projectId, dueDate, followUpTask: followUp, updatedAt: new Date().toISOString() }
+            ? { ...t, title, projectId, dueDate, url, followUpTask: followUp, updatedAt: new Date().toISOString() }
             : t
         );
         showToast('任务已更新');
@@ -1259,6 +1327,7 @@ ${(() => {
           updatedAt: new Date().toISOString(),
           completedAt: null,
           dueDate,
+          url,
           followUpTask: followUp,
           order: state.todos.filter(t => t.status === 'active').length,
         };
@@ -1282,6 +1351,7 @@ ${(() => {
 
       const projectId = document.getElementById('taskProjectSelect')?.value || null;
       const dueDate = document.getElementById('taskDueDateInput')?.value || null;
+      const url = document.getElementById('taskUrlInput')?.value?.trim() || null;
       const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
 
       const now = new Date().toISOString();
@@ -1289,7 +1359,7 @@ ${(() => {
       // 先更新并完成任务
       state.todos = state.todos.map(t => 
         t.id === state.editingTodo.id 
-          ? { ...t, title, projectId, dueDate, followUpTask: followUp, status: 'completed', completedAt: now, updatedAt: now }
+          ? { ...t, title, projectId, dueDate, url, followUpTask: followUp, status: 'completed', completedAt: now, updatedAt: now }
           : t
       );
 
