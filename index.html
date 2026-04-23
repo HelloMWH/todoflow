@@ -702,10 +702,9 @@ ${(() => {
     }
 
     // ========== 渲染函数 ==========
-        function getProjectName(projectId) {
+    function getProjectName(projectId) {
       if (!projectId || projectId === 'daily') return '日常';
       return state.projects.find(p => p.id === projectId)?.name || '未知项目';
-    }.projects.find(p => p.id === projectId)?.name || '未知项目';
     }
 
     function getProjectTodoCount(projectId) {
