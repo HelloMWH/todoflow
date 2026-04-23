@@ -267,6 +267,7 @@
           id: 'daily',
           name: '日常',
           color: 'green',
+          desc: '',
           createdAt: new Date().toISOString(),
           order: 0,
           pinned: true,
@@ -616,6 +617,8 @@ ${(() => {
       taskFollowUp: '',
       projectName: '',
       projectColor: 'blue',
+      projectDesc: '',
+      editingProject: null,
       // AI 配置
       aiConfig: loadAiConfig(),
       isGeneratingReport: false,
@@ -885,11 +888,19 @@ ${(() => {
                     return displayProjects.map(project => {
                       const projectTodos = activeTodos.filter(t => t.projectId === project.id);
                       return `
-                        <div class="w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0">
-                          <div class="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-                            <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
-                            <h3 class="font-medium text-sm">${project.name}</h3>
-                            <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                        <div class="group w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0 hover:border-border">
+                          <div class="px-3 py-2 border-b border-border/30">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
+                              <h3 class="font-medium text-sm">${project.name}</h3>
+                              <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                              <button onclick="event.stopPropagation(); openProjectModal(state.projects.find(p => p.id === '${project.id}'))" class="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-all">
+                                <svg class="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+                            </div>
+                            ${project.desc ? `<p class="text-xs text-muted-foreground/70 mt-1 pl-4">${project.desc}</p>` : ''}
                           </div>
                           <div class="flex-1 p-2 space-y-2 overflow-y-auto">
                             ${projectTodos.length > 0 ? projectTodos.map(todo => `
@@ -941,11 +952,19 @@ ${(() => {
                       const projectTodos = completedTodos.filter(t => t.projectId === project.id);
                       if (projectTodos.length === 0) return '';
                       return `
-                        <div class="w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0">
-                          <div class="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-                            <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
-                            <h3 class="font-medium text-sm">${project.name}</h3>
-                            <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                        <div class="group w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0 hover:border-border">
+                          <div class="px-3 py-2 border-b border-border/30">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
+                              <h3 class="font-medium text-sm">${project.name}</h3>
+                              <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                              <button onclick="event.stopPropagation(); openProjectModal(state.projects.find(p => p.id === '${project.id}'))" class="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-all">
+                                <svg class="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+                            </div>
+                            ${project.desc ? `<p class="text-xs text-muted-foreground/70 mt-1 pl-4">${project.desc}</p>` : ''}
                           </div>
                           <div class="flex-1 p-2 space-y-2 overflow-y-auto">
                             ${projectTodos.map(todo => `
@@ -992,11 +1011,19 @@ ${(() => {
                       const projectTodos = cancelledTodos.filter(t => t.projectId === project.id);
                       if (projectTodos.length === 0) return '';
                       return `
-                        <div class="w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0">
-                          <div class="flex items-center gap-2 px-3 py-2 border-b border-border/30">
-                            <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
-                            <h3 class="font-medium text-sm">${project.name}</h3>
-                            <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                        <div class="group w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0 hover:border-border">
+                          <div class="px-3 py-2 border-b border-border/30">
+                            <div class="flex items-center gap-2">
+                              <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
+                              <h3 class="font-medium text-sm">${project.name}</h3>
+                              <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
+                              <button onclick="event.stopPropagation(); openProjectModal(state.projects.find(p => p.id === '${project.id}'))" class="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-all">
+                                <svg class="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                                </svg>
+                              </button>
+                            </div>
+                            ${project.desc ? `<p class="text-xs text-muted-foreground/70 mt-1 pl-4">${project.desc}</p>` : ''}
                           </div>
                           <div class="flex-1 p-2 space-y-2 overflow-y-auto">
                             ${projectTodos.map(todo => `
@@ -1103,7 +1130,7 @@ ${(() => {
           <div class="fixed inset-0 modal-backdrop flex items-center justify-center z-50" onclick="if(event.target === this) closeProjectModal()">
             <div class="bg-card border border-border rounded-xl w-full max-w-sm mx-4 animate-slide-up shadow-2xl">
               <div class="p-4 border-b border-border flex items-center justify-between">
-                <h3 class="font-semibold">新建项目</h3>
+                <h3 class="font-semibold">${state.editingProject ? '编辑项目' : '新建项目'}</h3>
                 <button onclick="closeProjectModal()" class="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-accent transition-colors">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1116,6 +1143,10 @@ ${(() => {
                   <input type="text" id="projectNameInput" placeholder="输入项目名称..." value="${state.projectName}" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
+                  <label class="text-sm font-medium mb-1.5 block">项目描述</label>
+                  <textarea id="projectDescInput" placeholder="添加项目描述或备注..." rows="2" class="w-full min-h-[60px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none">${state.projectDesc}</textarea>
+                </div>
+                <div>
                   <label class="text-sm font-medium mb-1.5 block">项目颜色</label>
                   <div class="flex gap-2 flex-wrap">
                     ${projectColors.map(color => `
@@ -1124,9 +1155,14 @@ ${(() => {
                   </div>
                 </div>
               </div>
-              <div class="p-4 border-t border-border flex justify-end gap-2">
-                <button onclick="closeProjectModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">取消</button>
-                <button onclick="createProject()" class="btn-primary h-9 px-4 rounded-lg text-sm">创建</button>
+              <div class="p-4 border-t border-border flex ${state.editingProject ? 'justify-between' : 'justify-end'} gap-2">
+                ${state.editingProject && state.editingProject.id !== 'daily' ? `
+                  <button onclick="deleteProject(state.editingProject.id); closeProjectModal();" class="h-9 px-3 rounded-lg text-sm border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors">删除</button>
+                ` : ''}
+                <div class="flex gap-2">
+                  <button onclick="closeProjectModal()" class="btn-secondary h-9 px-4 rounded-lg text-sm">取消</button>
+                  <button onclick="${state.editingProject ? 'saveProject()' : 'createProject()'}" class="btn-primary h-9 px-4 rounded-lg text-sm">${state.editingProject ? '保存' : '创建'}</button>
+                </div>
               </div>
             </div>
           </div>
@@ -1532,22 +1568,50 @@ ${(() => {
       render();
     }
 
-    function openProjectModal() {
+    function openProjectModal(project = null) {
       state.showProjectModal = true;
-      state.projectName = '';
-      state.projectColor = 'blue';
+      state.editingProject = project;
+      if (project) {
+        state.projectName = project.name;
+        state.projectDesc = project.desc || '';
+        state.projectColor = project.color;
+      } else {
+        state.projectName = '';
+        state.projectDesc = '';
+        state.projectColor = 'blue';
+      }
       render();
       setTimeout(() => document.getElementById('projectNameInput')?.focus(), 100);
     }
 
     function closeProjectModal() {
       state.showProjectModal = false;
+      state.editingProject = null;
       render();
     }
 
     function selectProjectColor(color) {
       state.projectColor = color;
       render();
+    }
+
+    function saveProject() {
+      if (!state.editingProject) return;
+      const name = document.getElementById('projectNameInput')?.value?.trim();
+      if (!name) {
+        showToast('请输入项目名称');
+        return;
+      }
+      const desc = document.getElementById('projectDescInput')?.value?.trim() || '';
+      const project = state.projects.find(p => p.id === state.editingProject.id);
+      if (project) {
+        project.name = name;
+        project.desc = desc;
+        project.color = state.projectColor;
+        saveProjects(state.projects);
+        showToast('项目已更新');
+      }
+      closeProjectModal();
     }
 
     function createProject() {
@@ -1560,6 +1624,7 @@ ${(() => {
       const newProject = {
         id: generateId('proj'),
         name,
+        desc: document.getElementById('projectDescInput')?.value?.trim() || '',
         color: state.projectColor,
         createdAt: new Date().toISOString(),
         order: state.projects.length,
