@@ -266,7 +266,7 @@
         projects.unshift({
           id: 'daily',
           name: '日常',
-          color: 'yellow',
+          color: 'green',
           createdAt: new Date().toISOString(),
           order: 0,
           pinned: true,
@@ -386,7 +386,7 @@
       const activeTodos = periodTodos.filter(t => t.status === 'active');
 
       const getProjectName = (projectId) => {
-        if (!projectId) return '收件箱';
+        if (!projectId || projectId === 'daily') return '日常';
         const project = projects.find(p => p.id === projectId);
         return project?.name || '未知项目';
       };
@@ -467,7 +467,7 @@
         const activeTodos = periodTodos.filter(t => t.status === 'active');
 
         const getProjectName = (projectId) => {
-          if (!projectId) return '收件箱';
+          if (!projectId || projectId === 'daily') return '日常';
           const project = projects.find(p => p.id === projectId);
           return project?.name || '未知项目';
         };
@@ -699,9 +699,10 @@ ${(() => {
     }
 
     // ========== 渲染函数 ==========
-    function getProjectName(projectId) {
-      if (!projectId) return '收件箱';
+        function getProjectName(projectId) {
+      if (!projectId || projectId === 'daily') return '日常';
       return state.projects.find(p => p.id === projectId)?.name || '未知项目';
+    }.projects.find(p => p.id === projectId)?.name || '未知项目';
     }
 
     function getProjectTodoCount(projectId) {
@@ -1053,8 +1054,8 @@ ${(() => {
                 <div>
                   <label class="text-sm font-medium mb-1.5 block">所属项目</label>
                   <select id="taskProjectSelect" class="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                    <option value="" ${!state.taskProjectId ? 'selected' : ''}>收件箱</option>
-                    ${projects.map(p => `<option value="${p.id}" ${state.taskProjectId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
+                    <option value="daily" ${!state.taskProjectId || state.taskProjectId === 'daily' ? 'selected' : ''}>日常</option>
+                    ${projects.filter(p => p.id !== 'daily').map(p => `<option value="${p.id}" ${state.taskProjectId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}
                   </select>
                 </div>
                 <div>
@@ -1400,7 +1401,7 @@ ${(() => {
         return;
       }
 
-      const projectId = document.getElementById('taskProjectSelect')?.value || null;
+      const projectId = document.getElementById('taskProjectSelect')?.value || 'daily';
       const dueDate = document.getElementById('taskDueDateInput')?.value || null;
       const url = document.getElementById('taskUrlInput')?.value?.trim() || null;
       const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
@@ -1444,7 +1445,7 @@ ${(() => {
         return;
       }
 
-      const projectId = document.getElementById('taskProjectSelect')?.value || null;
+      const projectId = document.getElementById('taskProjectSelect')?.value || 'daily';
       const dueDate = document.getElementById('taskDueDateInput')?.value || null;
       const url = document.getElementById('taskUrlInput')?.value?.trim() || null;
       const followUp = document.getElementById('taskFollowUpInput')?.value?.trim() || null;
@@ -1576,7 +1577,7 @@ ${(() => {
       }
       state.projects = state.projects.filter(p => p.id !== projectId);
       state.todos = state.todos.map(t => 
-        t.projectId === projectId ? { ...t, projectId: null } : t
+        t.projectId === projectId ? { ...t, projectId: 'daily' } : t
       );
       if (state.selectedProjectId === projectId) {
         state.selectedProjectId = 'all';
