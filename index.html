@@ -942,63 +942,105 @@ ${(() => {
                   })()}
                 </div>
               ` : state.activeTab === 'completed' ? `
-                <div class="flex gap-4 h-full min-w-max">
+                <div class="flex flex-col h-full overflow-hidden">
                   ${(() => {
                     const displayProjects = selectedProjectId === 'all' 
                       ? projects
                       : projects.filter(p => p.id === selectedProjectId);
-                    return displayProjects.map(project => {
-                      const projectTodos = completedTodos.filter(t => t.projectId === project.id);
-                      if (projectTodos.length === 0) return '';
-                      return `
-                        <div class="group w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0 hover:border-border">
-                          <div class="px-3 py-2 border-b border-border/30">
-                            <div class="flex items-center gap-2">
-                              <span class="w-2.5 h-2.5 rounded-full bg-current icon-${project.color}"></span>
-                              <h3 class="font-medium text-sm">${project.name}</h3>
-                              <span class="text-xs text-muted-foreground">(${projectTodos.length})</span>
-                              <button onclick="event.stopPropagation(); openProjectModal(state.projects.find(p => p.id === '${project.id}'))" class="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-all">
-                                <svg class="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                </svg>
-                              </button>
-                            </div>
-                            ${project.desc ? `<p class="text-xs text-muted-foreground/70 mt-1 pl-4">${project.desc}</p>` : ''}
-                          </div>
-                          <div class="flex-1 p-2 space-y-2 overflow-y-auto">
-                            ${projectTodos.map(todo => `
-                              <div class="bg-card/30 border border-border/50 rounded-lg p-2.5 opacity-60 hover:opacity-100 transition-opacity group">
-                                <div class="flex items-start gap-2">
-                                  <div class="mt-0.5 w-4 h-4 rounded-full bg-success/80 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                  </div>
-                                  <div class="flex-1 min-w-0">
-                                    <p class="text-sm leading-snug text-muted-foreground line-through">${todo.title}</p>
-                                    <div class="flex items-center gap-1.5 mt-1">
-                                      <span class="text-[10px] text-muted-foreground/60">${formatDate(todo.completedAt)}</span>
-                                      ${todo.url ? `
-                                        <a href="${todo.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="inline-flex items-center gap-0.5 text-[10px] px-1 py-0 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/25 transition-colors">
-                                          链接
-                                        </a>
-                                      ` : ''}
-                                    </div>
-                                  </div>
-                                  <button onclick="deleteTask('${todo.id}')" class="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-0.5 flex-shrink-0">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    
+                    // 计算周期：上周五到本周四
+                    const today = new Date();
+                    const dayOfWeek = today.getDay();
+                    // 本周四：距离今天最近的那个周四（如果今天是周四就是今天）
+                    const thursday = 4;
+                    const daysUntilThisThu = (thursday - dayOfWeek + 7) % 7;
+                    const thisThursday = new Date(today);
+                    thisThursday.setDate(today.getDate() + daysUntilThisThu);
+                    // 上周五：本周四往前推6天
+                    const lastFriday = new Date(thisThursday);
+                    lastFriday.setDate(thisThursday.getDate() - 6);
+                    
+                    // 格式化周期标题
+                    const formatPeriodDate = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+                    const currentPeriodLabel = \`上周五\${formatPeriodDate(lastFriday)} - 本周四\${formatPeriodDate(thisThursday)}\`;
+                    
+                    // 分组：本周周期内 vs 更早
+                    const currentPeriodTodos = completedTodos.filter(t => {
+                      if (!t.completedAt) return false;
+                      const completed = new Date(t.completedAt);
+                      return completed >= lastFriday && completed <= thisThursday;
+                    });
+                    const earlierTodos = completedTodos.filter(t => {
+                      if (!t.completedAt) return false;
+                      const completed = new Date(t.completedAt);
+                      return completed < lastFriday;
+                    });
+                    
+                    return \`
+                      <div class="flex gap-4 min-w-max">
+                        \${displayProjects.map(project => {
+                          const projectCurrentPeriod = currentPeriodTodos.filter(t => t.projectId === project.id);
+                          const projectEarlier = earlierTodos.filter(t => t.projectId === project.id);
+                          if (projectCurrentPeriod.length === 0 && projectEarlier.length === 0) return '';
+                          return \`
+                            <div class="w-72 flex flex-col bg-card/50 rounded-xl border border-border/50 flex-shrink-0 hover:border-border">
+                              <div class="px-3 py-2 border-b border-border/30">
+                                <div class="flex items-center gap-2">
+                                  <span class="w-2.5 h-2.5 rounded-full bg-current icon-\${project.color}"></span>
+                                  <h3 class="font-medium text-sm">\${project.name}</h3>
+                                  <span class="text-xs text-muted-foreground">(\${projectCurrentPeriod.length + projectEarlier.length})</span>
+                                  <button onclick="event.stopPropagation(); openProjectModal(state.projects.find(p => p.id === '\${project.id}'))" class="ml-auto opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-all">
+                                    <svg class="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                     </svg>
                                   </button>
                                 </div>
+                                \${project.desc ? \`<p class="text-xs text-muted-foreground/70 mt-1 pl-4">\${project.desc}</p>\` : ''}
                               </div>
-                            `).join('')}
-                          </div>
-                        </div>
-                      `;
-                    }).join('');
+                              <div class="flex-1 p-2 space-y-3 overflow-y-auto">
+                                \${projectCurrentPeriod.length > 0 ? \`
+                                  <div class="text-[10px] font-medium text-primary/80 px-1">\${currentPeriodLabel}</div>
+                                  \${projectCurrentPeriod.map(todo => \`
+                                    <div class="bg-success/5 border border-success/15 rounded-lg p-2.5 hover:border-success/30 transition-colors">
+                                      <div class="flex items-start gap-2">
+                                        <div class="mt-0.5 w-4 h-4 rounded-full bg-success/60 flex items-center justify-center flex-shrink-0">
+                                          <svg class="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                          </svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                          <p class="text-sm leading-snug text-foreground/80">\${todo.title}</p>
+                                          <span class="text-[10px] text-success/70 mt-0.5 block">\${formatDate(todo.completedAt)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  \`).join('')}
+                                \` : ''}
+                                \${projectEarlier.length > 0 ? \`
+                                  <div class="text-[10px] font-medium text-muted-foreground/50 px-1">更早</div>
+                                  \${projectEarlier.map(todo => \`
+                                    <div class="bg-card/20 border border-border/30 rounded-lg p-2.5 hover:border-border/50 transition-colors">
+                                      <div class="flex items-start gap-2">
+                                        <div class="mt-0.5 w-4 h-4 rounded-full bg-muted-foreground/30 flex items-center justify-center flex-shrink-0">
+                                          <svg class="w-2 h-2 text-muted-foreground/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                                          </svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                          <p class="text-sm leading-snug text-muted-foreground">\${todo.title}</p>
+                                          <span class="text-[10px] text-muted-foreground/40 mt-0.5 block">\${formatDate(todo.completedAt)}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  \`).join('')}
+                                \` : ''}
+                              </div>
+                            </div>
+                          \`;
+                        }).join('')}
+                      \${completedTodos.length === 0 ? '<div class="text-center text-muted-foreground/50 text-sm py-12">暂无已完成的任务</div>' : ''}
+                    \`;
                   })()}
-                  ${completedTodos.length === 0 ? '<div class="text-center text-muted-foreground/50 text-sm py-12">暂无已完成的任务</div>' : ''}
                 </div>
               ` : `
                 <div class="flex gap-4 h-full min-w-max">
