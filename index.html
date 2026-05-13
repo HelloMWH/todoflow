@@ -196,6 +196,7 @@
       TODOS: 'todoflow_todos',
       PROJECTS: 'todoflow_projects',
       SETTINGS: 'todoflow_settings',
+      BACKUP: 'todoflow_auto_backup',
     };
 
     const projectColors = ['blue', 'green', 'purple', 'orange', 'teal', 'pink', 'red', 'yellow'];
@@ -245,6 +246,7 @@
 
     function saveTodos(todos) {
       localStorage.setItem(STORAGE_KEYS.TODOS, JSON.stringify(todos));
+      autoBackup();
     }
 
     function loadProjects() {
@@ -257,6 +259,46 @@
 
     function saveProjects(projects) {
       localStorage.setItem(STORAGE_KEYS.PROJECTS, JSON.stringify(projects));
+      autoBackup();
+    }
+
+    // 自动备份（每次保存时写入独立 key）
+    function autoBackup() {
+      try {
+        const backup = {
+          todos: JSON.parse(localStorage.getItem(STORAGE_KEYS.TODOS) || '[]'),
+          projects: JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS) || '[]'),
+          backedUpAt: new Date().toISOString(),
+        };
+        localStorage.setItem(STORAGE_KEYS.BACKUP, JSON.stringify(backup));
+      } catch {}
+    }
+
+    // 检查是否有自动备份可恢复
+    function hasAutoBackup() {
+      try {
+        const data = localStorage.getItem(STORAGE_KEYS.BACKUP);
+        if (!data) return null;
+        const backup = JSON.parse(data);
+        if (backup.todos && backup.todos.length > 0) return backup;
+        return null;
+      } catch { return null; }
+    }
+
+    // 从自动备份恢复
+    function restoreFromAutoBackup() {
+      const backup = hasAutoBackup();
+      if (!backup) {
+        showToast('没有可恢复的自动备份');
+        return;
+      }
+      if (!confirm(`将恢复 ${backup.todos.length} 个任务和 ${backup.projects.length} 个项目（备份时间：${formatFullDate(backup.backedUpAt)}），当前数据将被覆盖，是否继续？`)) return;
+      saveTodos(backup.todos);
+      saveProjects(backup.projects);
+      state.todos = backup.todos;
+      state.projects = ensureDefaultProject(backup.projects);
+      render();
+      showToast('已从自动备份恢复');
     }
 
     // 确保默认项目存在并排序
@@ -1328,6 +1370,17 @@ ${(() => {
                       </svg>
                       清理30天前的已完成任务
                     </button>
+                    ${(() => {
+                      const backup = hasAutoBackup();
+                      return backup ? `
+                        <button onclick="restoreFromAutoBackup()" class="w-full h-9 rounded-lg text-sm flex items-center justify-center gap-2 border border-primary/30 text-primary hover:bg-primary/10 transition-colors">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                          </svg>
+                          恢复自动备份 (${backup.todos.length}条, ${formatDate(backup.backedUpAt)})
+                        </button>
+                      ` : '';
+                    })()}
                   </div>
                 ` : `
                   <div class="space-y-4">
